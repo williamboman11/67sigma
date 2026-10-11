@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cotton Harvest Clicker - Expanded Empire</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { width: 100%; height: 100%; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; background: #0b0b0b; color: #eee; }
+    
+    #app { display: flex; width: 100vw; height: 100vh; }
+    
+    #stage { flex: 1; position: relative; overflow-y: auto; background: #1a120b; border-right: 3px solid #111; display: flex; flex-direction: column; align-items: stretch; padding: 0; gap: 0; }
+    #stage::-webkit-scrollbar { width: 8px; }
+    #stage::-webkit-scrollbar-thumb { background: #4a3319; border-radius: 4px; }
+
+    .farm-panel {
+      width: 100%;
+      height: 220px;
+      background: #2c5e3b;
+      border-top: 4px solid #4a3525;
+      border-bottom: 4px solid #4a3525;
+      position: relative;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.4);
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .panel-header {
+      position: absolute;
+      top: 6px;
+      right: 15px;
+      background: rgba(0,0,0,0.65);
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: #ffd700;
+      z-index: 5;
+    }
+
+    canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+    
+    #shop { width: 420px; background: #141414; display: flex; flex-direction: column; padding: 20px; box-shadow: -6px 0 20px rgba(0,0,0,0.6); z-index: 101; border-left: 1px solid #222; }
+    #shop header { margin-bottom: 12px; border-bottom: 1px solid #262626; padding-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    #shop h1 { font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; color: #fff; }
+    .sub { font-size: 0.75rem; color: #888; }
+    
+    #topbar { text-align: right; pointer-events: none; }
+    #cotton { font-size: 1.8rem; font-weight: 800; color: #ffffff; letter-spacing: -1px; line-height: 1; }
+    #rate { font-size: 0.75rem; color: #85e3be; margin-top: 2px; font-weight: 600; }
+    
+    #buyrow { display: flex; gap: 4px; margin-bottom: 12px; background: #1c1c1c; padding: 4px; border-radius: 6px; border: 1px solid #2a2a2a; }
+    .buy-btn { flex: 1; padding: 6px; background: transparent; color: #aaa; border: none; cursor: pointer; border-radius: 4px; font-weight: 600; font-size: 0.8rem; transition: all 0.2s; }
+    .buy-btn.active { background: #333; color: #fff; }
+
+    #items { flex: 1; overflow-y: auto; margin-bottom: 15px; padding-right: 6px; }
+    #items::-webkit-scrollbar { width: 6px; }
+    #items::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    
+    .shop-item { background: #1c1c1c; border: 1px solid #2a2a2a; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; }
+    .shop-item:hover { background: #222222; border-color: #383838; }
+    .shop-item-info { max-width: 210px; }
+    .shop-item-title { font-weight: 600; font-size: 0.85rem; color: #fff; }
+    .shop-item-desc { font-size: 0.7rem; color: #999; margin-top: 2px; line-height: 1.1; }
+    .shop-item-cost { font-size: 0.7rem; color: #85e3be; margin-top: 4px; font-weight: 600; }
+    
+    .shop-item button { padding: 6px 12px; background: #2e6940; color: #fff; border: none; cursor: pointer; border-radius: 6px; font-weight: 600; font-size: 0.75rem; transition: background 0.2s; }
+    .shop-item button:hover:not(:disabled) { background: #38804e; }
+    .shop-item button:disabled { background: #222222; color: #555; cursor: not-allowed; }
+    
+    footer { display: flex; gap: 10px; border-top: 1px solid #262626; padding-top: 12px; }
+    footer button { flex: 1; padding: 8px; background: #1f1f1f; color: #ccc; border: 1px solid #333; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    footer button:hover { background: #2a2a2a; color: #fff; }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <main id="stage">
+    <!-- Panel 1: Main Cotton Field -->
+    <div class="farm-panel" id="panel-field1">
+      <div class="panel-header">Main Cotton Field</div>
+      <canvas id="canvas-field1" width="1000" height="220"></canvas>
+    </div>
+
+    <!-- Panel 2: Second Farm Row -->
+    <div class="farm-panel" id="panel-field2" style="display:none;">
+      <div class="panel-header">Lower Expansion Field</div>
+      <canvas id="canvas-field2" width="1000" height="220"></canvas>
+    </div>
+
+    <!-- Panel 3: Advanced Giant Cotton Field -->
+    <div class="farm-panel" id="panel-advanced" style="display:none; background: #244830;">
+      <div class="panel-header">Advanced Giant Cotton Field</div>
+      <canvas id="canvas-advanced" width="1000" height="220"></canvas>
+    </div>
+
+    <!-- Panel 4: Beach & Trading Dock -->
+    <div class="farm-panel" id="panel-boat" style="display:none; background: #1a5276;">
+      <div class="panel-header">Export Beach & Trading Dock</div>
+      <canvas id="canvas-boat" width="1000" height="220"></canvas>
+    </div>
+
+    <!-- Panel 5: Estate Home -->
+    <div class="farm-panel" id="panel-home" style="display:none; background: #5c4033;">
+      <div class="panel-header">Plantation Estate House</div>
+      <canvas id="canvas-home" width="1000" height="220"></canvas>
+    </div>
+  </main>
+  
+  <aside id="shop">
+    <header>
+      <div>
+        <h1>PLANTATION EMPIRE</h1>
+        <p class="sub">Management & Operations</p>
+      </div>
+      <div id="topbar">
+        <div id="cotton">0</div>
+        <div id="rate">0.0 / sec</div>
+      </div>
+    </header>
+    <div id="buyrow">
+      <button class="buy-btn active" data-amt="1">Buy 1</button>
+      <button class="buy-btn" data-amt="10">Buy 10</button>
+      <button class="buy-btn" data-amt="100">Buy 100</button>
+    </div>
+    <div id="items"></div>
+    <footer>
+      <button id="saveBtn">Save</button>
+      <button id="resetBtn">Reset</button>
+    </footer>
+  </aside>
+</div>
+
+<script>
+  const cottonEl = document.getElementById('cotton');
+  const rateEl = document.getElementById('rate');
+
+  let buyMode = 1;
+  document.querySelectorAll('.buy-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.buy-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      buyMode = parseInt(e.target.getAttribute('data-amt'));
+      renderShop();
+    });
+  });
+
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function playSound(type) {
+    try {
+      initAudio();
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(350, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.06);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.06);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.06);
+      } else if (type === 'buy') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+      }
+    } catch (e) {}
+  }
+
+  let game = {
+    cotton: 0,
+    clickPower: 1,
+    upgrades: {
+      worker: { name: "Field Worker", desc: "Harvests regular fields (+0.5/sec)", cost: 15, count: 0, unlocked: true },
+      hoe1: { name: "Steel Hoe", desc: "+1 cotton per click", cost: 50, count: 0, unlocked: false, power: 1 },
+      hoe2: { name: "Reinforced Hoe", desc: "+5 cotton per click", cost: 250, count: 0, unlocked: false, power: 5 },
+      hoe3: { name: "Heavy Hoe", desc: "+10 cotton per click", cost: 1000, count: 0, unlocked: false, power: 10 },
+      foreman: { name: "Foreman", desc: "Supervises fields (+2.5/sec)", cost: 150, count: 0, unlocked: false },
+      field2: { name: "Second Farm Row", desc: "Unlocks lower field panel", cost: 300, count: 0, unlocked: false, maxCount: 1 },
+      manager: { name: "Plantation Manager", desc: "+8 cotton/sec", cost: 600, count: 0, unlocked: false },
+      advancedField: { name: "Giant Cotton Field", desc: "Unlocks advanced giant field", cost: 1500, count: 0, unlocked: false, maxCount: 1 },
+      buffWorker: { name: "Buff Field Worker", desc: "Strong worker for Giant Field (+4 cotton/harvest)", cost: 500, count: 0, unlocked: false },
+      boat: { name: "Trading Boat & Beach", desc: "Trades workers overseas for income", cost: 3500, count: 0, unlocked: false, maxCount: 1 },
+      cleaner: { name: "Estate House Cleaners", desc: "Workers cleaning inside home (+25/sec)", cost: 7500, count: 0, unlocked: false }
+    }
+  };
+
+  let workers = [];
+  let buffWorkers = [];
+  let cleaners = [];
+  let plants1 = [];
+  let plants2 = [];
+  let advancedPlants = [];
+  let boatPos1 = 0;
+  let boatPos2 = 300;
+
+  const ctx1 = document.getElementById('canvas-field1').getContext('2d');
+  const ctx2 = document.getElementById('canvas-field2').getContext('2d');
+  const ctxAdv = document.getElementById('canvas-advanced').getContext('2d');
+  const ctxBoat = document.getElementById('canvas-boat').getContext('2d');
+  const ctxHome = document.getElementById('canvas-home').getContext('2d');
+
+  function initPlants() {
+    plants1 = [];
+    plants2 = [];
+    advancedPlants = [];
+    for (let c = 0; c < 12; c++) {
+      plants1.push({ x: 60 + (c * 75), y: 150, hasCotton: true, regrowTimer: 0 });
+      plants2.push({ x: 60 + (c * 75), y: 150, hasCotton: true, regrowTimer: 0 });
+      advancedPlants.push({ x: 60 + (c * 75), y: 155, hasCotton: true, regrowTimer: 0 });
+    }
+  }
+
+  function syncEntities() {
+    let targetWorkers = game.upgrades.worker.count;
+    while (workers.length < targetWorkers) {
+      workers.push({
+        x: 80 + Math.random() * 840,
+        y: 150,
+        fieldIndex: 0,
+        targetPlant: null,
+        state: 'walking',
+        pickTimer: 0,
+        speed: 1.2 + Math.random() * 0.5
+      });
+    }
+    while (workers.length > targetWorkers) workers.pop();
+
+    let targetBuffs = game.upgrades.buffWorker.count;
+    while (buffWorkers.length < targetBuffs) {
+      buffWorkers.push({
+        x: 80 + Math.random() * 840,
+        y: 150,
+        targetPlant: null,
+        state: 'walking',
+        pickTimer: 0,
+        speed: 1.5 + Math.random() * 0.4
+      });
+    }
+    while (buffWorkers.length > targetBuffs) buffWorkers.pop();
+
+    let targetCleaners = game.upgrades.cleaner.count * 2;
+    while (cleaners.length < targetCleaners) {
+      cleaners.push({
+        x: 80 + Math.random() * 840,
+        y: 150,
+        speed: 1.0 + Math.random() * 0.4,
+        dir: 1
+      });
+    }
+    while (cleaners.length > targetCleaners) cleaners.pop();
+  }
+
+  function calculateBulkCost(up, amt) {
+    if (up.maxCount && up.count >= up.maxCount) return 0;
+    let totalCost = 0;
+    let currentCost = up.cost;
+    let effectiveAmt = up.maxCount ? Math.min(amt, up.maxCount - up.count) : amt;
+    for (let i = 0; i < effectiveAmt; i++) {
+      totalCost += currentCost;
+      currentCost *= 1.18;
+    }
+    return totalCost;
+  }
+
+  function saveGame() {
+    localStorage.setItem('cottonClickerSaveBalancedFinal', JSON.stringify(game));
+  }
+
+  function loadGame() {
+    const saved = localStorage.getItem('cottonClickerSaveBalancedFinal');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        game = Object.assign({}, game, parsed);
+        if (parsed.upgrades) {
+          for (let key in parsed.upgrades) {
+            if (game.upgrades[key]) {
+              game.upgrades[key].count = parsed.upgrades[key].count;
+              game.upgrades[key].cost = parsed.upgrades[key].cost;
+              game.upgrades[key].unlocked = parsed.upgrades[key].unlocked;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+    recalculateClickPower();
+    checkUnlocks();
+    initPlants();
+    syncEntities();
+  }
+
+  function recalculateClickPower() {
+    let cp = 1;
+    ['hoe1', 'hoe2', 'hoe3'].forEach(k => {
+      if (game.upgrades[k]) {
+        cp += (game.upgrades[k].count * game.upgrades[k].power);
+      }
+    });
+    game.clickPower = cp;
+  }
+
+  function resetGame() {
+    if (confirm("Reset progress?")) {
+      localStorage.removeItem('cottonClickerSaveBalancedFinal');
+      location.reload();
+    }
+  }
+
+  function checkUnlocks() {
+    if (game.upgrades.worker.count >= 1) game.upgrades.hoe1.unlocked = true;
+    if (game.upgrades.hoe1.count > 0) game.upgrades.hoe2.unlocked = true;
+    if (game.upgrades.hoe2.count > 0) {
+      game.upgrades.foreman.unlocked = true;
+      game.upgrades.hoe3.unlocked = true;
+    }
+    if (game.upgrades.foreman.count > 0) {
+      game.upgrades.field2.unlocked = true;
+      if (game.upgrades.field2.count > 0) {
+        document.getElementById('panel-field2').style.display = 'block';
+      }
+    }
+    if (game.upgrades.field2.count > 0) game.upgrades.manager.unlocked = true;
+    if (game.upgrades.manager.count > 0) {
+      game.upgrades.advancedField.unlocked = true;
+      if (game.upgrades.advancedField.count > 0) {
+        document.getElementById('panel-advanced').style.display = 'block';
+      }
+    }
+    if (game.upgrades.advancedField.count > 0) {
+      game.upgrades.buffWorker.unlocked = true;
+      game.upgrades.boat.unlocked = true;
+      if (game.upgrades.boat.count > 0) {
+        document.getElementById('panel-boat').style.display = 'block';
+      }
+    }
+    if (game.upgrades.boat.count > 0) {
+      game.upgrades.cleaner.unlocked = true;
+      if (game.upgrades.cleaner.count > 0) {
+        document.getElementById('panel-home').style.display = 'block';
+      }
+    }
+  }
+
+  function getCPS() {
+    let cps = 0;
+    cps += (game.upgrades.worker.count * 0.5);
+    cps += (game.upgrades.buffWorker.count * 2.5);
+    cps += (game.upgrades.foreman.count * 2.5);
+    cps += (game.upgrades.manager.count * 8);
+    cps += (game.upgrades.advancedField.count * 10);
+    if (game.upgrades.boat.count > 0) {
+      cps += (game.upgrades.boat.count * 30);
+    }
+    cps += (game.upgrades.cleaner.count * 40);
+    return cps;
+  }
+
+  function renderShop() {
+    const itemsContainer = document.getElementById('items');
+    itemsContainer.innerHTML = '';
+
+    for (let key in game.upgrades) {
+      let up = game.upgrades[key];
+      if (!up.unlocked) continue;
+
+      let isMaxed = up.maxCount && up.count >= up.maxCount;
+      let cost = calculateBulkCost(up, buyMode);
+      let div = document.createElement('div');
+      div.className = 'shop-item';
+      div.innerHTML = `
+        <div class="shop-item-info">
+          <div class="shop-item-title" id="title-${key}">${up.name} (${up.count}${up.maxCount ? '/' + up.maxCount : ''})</div>
+          <div class="shop-item-desc">${up.desc}</div>
+          <div class="shop-item-cost" id="cost-${key}">${isMaxed ? 'MAXED' : 'Cost: ' + Math.floor(cost) + ' cotton'}</div>
+        </div>
+        <button ${isMaxed || game.cotton < cost ? 'disabled' : ''} data-key="${key}" id="btn-${key}">${isMaxed ? 'Purchased' : 'Buy ' + buyMode}</button>
+      `;
+      itemsContainer.appendChild(div);
+    }
+
+    document.querySelectorAll('.shop-item button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        let key = e.target.getAttribute('data-key');
+        buyUpgrade(key);
+      });
+    });
+  }
+
+  function updateShopUI() {
+    for (let key in game.upgrades) {
+      let up = game.upgrades[key];
+      if (!up.unlocked) continue;
+
+      let isMaxed = up.maxCount && up.count >= up.maxCount;
+      let cost = calculateBulkCost(up, buyMode);
+      let titleEl = document.getElementById(`title-${key}`);
+      let costEl = document.getElementById(`cost-${key}`);
+      let btnEl = document.getElementById(`btn-${key}`);
+
+      if (titleEl) titleEl.textContent = `${up.name} (${up.count}${up.maxCount ? '/' + up.maxCount : ''})`;
+      if (costEl) costEl.textContent = isMaxed ? 'MAXED' : `Cost: ${Math.floor(cost)} cotton`;
+      if (btnEl) {
+        btnEl.disabled = isMaxed || game.cotton < cost;
+        btnEl.textContent = isMaxed ? 'Purchased' : `Buy ${buyMode}`;
+      }
+    }
+  }
+
+  function buyUpgrade(key) {
+    let up = game.upgrades[key];
+    if (up.maxCount && up.count >= up.maxCount) return;
+    
+    let cost = calculateBulkCost(up, buyMode);
+    if (game.cotton >= cost) {
+      game.cotton -= cost;
+      let effectiveAmt = up.maxCount ? Math.min(buyMode, up.maxCount - up.count) : buyMode;
+      for (let i = 0; i < effectiveAmt; i++) {
+        up.count++;
+        up.cost *= 1.18;
+      }
+      playSound('buy');
+
+      recalculateClickPower();
+      if (key === 'worker' || key === 'field2' || key === 'advancedField' || key === 'buffWorker' || key === 'boat' || key === 'cleaner') {
+        if (key === 'field2' && up.count === 1) document.getElementById('panel-field2').style.display = 'block';
+        if (key === 'advancedField' && up.count === 1) document.getElementById('panel-advanced').style.display = 'block';
+        if (key === 'boat' && up.count === 1) document.getElementById('panel-boat').style.display = 'block';
+        if (key === 'cleaner' && up.count === 1) document.getElementById('panel-home').style.display = 'block';
+        syncEntities();
+      }
+
+      checkUnlocks();
+      renderShop();
+      updateUI();
+      saveGame();
+    }
+  }
+
+  document.getElementById('canvas-field1').addEventListener('click', () => {
+    game.cotton += game.clickPower;
+    playSound('click');
+    updateUI();
+  });
+  document.getElementById('canvas-field2').addEventListener('click', () => {
+    game.cotton += game.clickPower;
+    playSound('click');
+    updateUI();
+  });
+  document.getElementById('canvas-advanced').addEventListener('click', () => {
+    game.cotton += game.clickPower * 2;
+    playSound('click');
+    updateUI();
+  });
+
+  function updateUI() {
+    cottonEl.textContent = Math.floor(game.cotton);
+    rateEl.textContent = getCPS().toFixed(1) + " / sec";
+    updateShopUI();
+  }
+
+  // Main Loop
+  let lastTime = performance.now();
+  function loop(now) {
+    let dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    let cps = getCPS();
+    if (cps > 0) {
+      game.cotton += cps * dt;
+      updateUI();
+    }
+
+    if (game.upgrades.boat.count > 0) {
+      boatPos1 += 60 * dt;
+      boatPos2 -= 60 * dt;
+      if (boatPos1 > 500) boatPos1 = 0;
+      if (boatPos2 < 0) boatPos2 = 500;
+    }
+
+    // Render Field 1
+    ctx1.clearRect(0, 0, 1000, 220);
+    drawSkyAndGround(ctx1);
+    drawPlants(ctx1, plants1, dt, false);
+    workers.forEach(w => {
+      if (w.fieldIndex === 0) {
+        updateAndDrawWorker(ctx1, w, plants1, dt, 0, false);
+      }
+    });
+    if (game.upgrades.foreman.count > 0 || game.upgrades.manager.count > 0) {
+      drawForeman(ctx1, 40, 150);
+    }
+
+    // Render Field 2
+    if (game.upgrades.field2.count > 0) {
+      ctx2.clearRect(0, 0, 1000, 220);
+      drawSkyAndGround(ctx2);
+      drawPlants(ctx2, plants2, dt, false);
+      workers.forEach(w => {
+        if (w.fieldIndex === 1) {
+          updateAndDrawWorker(ctx2, w, plants2, dt, 1, false);
+        }
+      });
+      if (game.upgrades.manager.count > 0) {
+        drawForeman(ctx2, 40, 150);
+      }
+    }
+
+    // Render Advanced Giant Cotton Field (Buff Workers work here)
+    if (game.upgrades.advancedField.count > 0) {
+      ctxAdv.clearRect(0, 0, 1000, 220);
+      drawSkyAndGround(ctxAdv, '#1b4d3e', '#123524');
+      drawPlants(ctxAdv, advancedPlants, dt, true);
+      buffWorkers.forEach(bw => {
+        updateAndDrawBuffWorker(ctxAdv, bw, advancedPlants, dt);
+      });
+      drawForeman(ctxAdv, 40, 150);
+    }
+
+    // Render Beach & Trading Boat
+    if (game.upgrades.boat.count > 0) {
+      ctxBoat.clearRect(0, 0, 1000, 220);
+      drawBoatSketchScene(ctxBoat, boatPos1, boatPos2);
+    }
+
+    // Render Estate Home
+    if (game.upgrades.cleaner.count > 0) {
+      ctxHome.clearRect(0, 0, 1000, 220);
+      drawEstateInterior(ctxHome, cleaners, dt);
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  function drawSkyAndGround(ctx, skyColor1 = '#4a90e2', groundColor1 = '#527941') {
+    let sky = ctx.createLinearGradient(0, 0, 0, 95);
+    sky.addColorStop(0, skyColor1); sky.addColorStop(1, '#a1c4fd');
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, 1000, 95);
+
+    let ground = ctx.createLinearGradient(0, 95, 0, 220);
+    ground.addColorStop(0, groundColor1); ground.addColorStop(1, '#2c1d11');
+    ctx.fillStyle = ground; ctx.fillRect(0, 95, 1000, 125);
+  }
+
+  function drawPlants(ctx, plants, dt, isGiant = false) {
+    plants.forEach((p) => {
+      if (!p.hasCotton) {
+        p.regrowTimer += dt;
+        if (p.regrowTimer > 4) { p.hasCotton = true; p.regrowTimer = 0; }
+      }
+      ctx.fillStyle = '#3d2616';
+      ctx.beginPath(); ctx.ellipse(p.x, p.y, isGiant ? 18 : 12, isGiant ? 8 : 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#1e3f20'; ctx.lineWidth = isGiant ? 6 : 4;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - (isGiant ? 55 : 35)); ctx.stroke();
+      if (p.hasCotton) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        let scale = isGiant ? 1.5 : 1;
+        ctx.arc(p.x - (8*scale), p.y - (24*scale), 8*scale, 0, Math.PI * 2);
+        ctx.arc(p.x + (8*scale), p.y - (30*scale), 10*scale, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y - (38*scale), 9*scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+  }
+
+  function updateAndDrawWorker(ctx, w, plants, dt, myFieldIndex) {
+    if (w.state === 'walking') {
+      if (myFieldIndex === 0 && game.upgrades.field2.count > 0 && workers.filter(x=>x.fieldIndex===0).length > 5) {
+        w.x += w.speed * 2;
+        if (w.x > 1020) { w.fieldIndex = 1; w.x = 980; }
+        drawWorker(ctx, w.x, 150, false, false);
+        return;
+      }
+
+      if (!w.targetPlant || !w.targetPlant.hasCotton) {
+        let avail = plants.filter(p => p.hasCotton);
+        if (avail.length > 0) w.targetPlant = avail[Math.floor(Math.random() * avail.length)];
+      }
+      if (w.targetPlant) {
+        let dx = w.targetPlant.x - w.x;
+        if (Math.abs(dx) > 3) w.x += Math.sign(dx) * w.speed;
+        else { w.state = 'picking'; w.pickTimer = 20; }
+      }
+    } else if (w.state === 'picking') {
+      w.pickTimer--;
+      if (w.pickTimer <= 0) {
+        if (w.targetPlant && w.targetPlant.hasCotton) {
+          w.targetPlant.hasCotton = false;
+          game.cotton += 1;
+          updateUI();
+        }
+        w.state = 'walking'; w.targetPlant = null;
+      }
+    }
+    drawWorker(ctx, w.x, w.targetPlant ? w.targetPlant.y : 150, w.state === 'picking', false);
+  }
+
+  function updateAndDrawBuffWorker(ctx, bw, plants, dt) {
+    if (bw.state === 'walking') {
+      if (!bw.targetPlant || !bw.targetPlant.hasCotton) {
+        let avail = plants.filter(p => p.hasCotton);
+        if (avail.length > 0) bw.targetPlant = avail[Math.floor(Math.random() * avail.length)];
+      }
+      if (bw.targetPlant) {
+        let dx = bw.targetPlant.x - bw.x;
+        if (Math.abs(dx) > 3) bw.x += Math.sign(dx) * bw.speed;
+        else { bw.state = 'picking'; bw.pickTimer = 18; }
+      }
+    } else if (bw.state === 'picking') {
+      bw.pickTimer--;
+      if (bw.pickTimer <= 0) {
+        if (bw.targetPlant && bw.targetPlant.hasCotton) {
+          bw.targetPlant.hasCotton = false;
+          game.cotton += 4; // Buff worker yields more cotton
+          updateUI();
+        }
+        bw.state = 'walking'; bw.targetPlant = null;
+      }
+    }
+    drawWorker(ctx, bw.x, bw.targetPlant ? bw.targetPlant.y : 150, bw.state === 'picking', true);
+  }
+
+  // Worker in shorts only with black eyes (isBuff makes them slightly broader/stronger)
+  function drawWorker(ctx, x, y, isPicking, isBuff) {
+    let widthScale = isBuff ? 1.3 : 1;
+    
+    // Shorts
+    ctx.strokeStyle = '#1b2631'; ctx.lineWidth = 5 * widthScale;
+    ctx.beginPath(); 
+    ctx.moveTo(x - (4*widthScale), y); ctx.lineTo(x - (4*widthScale), y - 16);
+    ctx.moveTo(x + (4*widthScale), y); ctx.lineTo(x + (4*widthScale), y - 16); 
+    ctx.stroke();
+
+    // Bare torso
+    ctx.fillStyle = '#3e2723'; 
+    ctx.fillRect(x - (7*widthScale), y - (isBuff ? 54 : 48), 14*widthScale, isBuff ? 36 : 32);
+
+    // Head
+    ctx.fillStyle = '#3e2723';
+    ctx.beginPath(); ctx.arc(x, y - (isBuff ? 62 : 55), isBuff ? 9 : 8, 0, Math.PI * 2); ctx.fill();
+
+    // Black eyes
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(x + 2, y - (isBuff ? 64 : 57), 2, 2);
+
+    // Arm picking
+    ctx.strokeStyle = '#3e2723'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x + (5*widthScale), y - 40); ctx.lineTo(x + (isPicking ? 14 : 5), y - 32); ctx.stroke();
+  }
+
+  function drawForeman(ctx, x, y) {
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(x - 4, y); ctx.lineTo(x - 4, y - 30);
+    ctx.moveTo(x + 4, y); ctx.lineTo(x + 4, y - 30); ctx.stroke();
+
+    ctx.fillStyle = '#f8f8f8'; ctx.fillRect(x - 8, y - 60, 16, 32);
+    ctx.fillStyle = '#222'; ctx.fillRect(x - 2, y - 60, 4, 32);
+
+    ctx.fillStyle = '#f5d0b1'; ctx.beginPath(); ctx.arc(x, y - 68, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#784212';
+    ctx.fillRect(x - 11, y - 78, 22, 3);
+    ctx.fillRect(x - 6, y - 85, 12, 8);
+  }
+
+  function drawBoatSketchScene(ctx, p1, p2) {
+    ctx.fillStyle = '#1a5276'; ctx.fillRect(0, 0, 1000, 220);
+
+    ctx.fillStyle = '#27ae60';
+    ctx.beginPath(); ctx.ellipse(100, 140, 140, 90, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(900, 120, 160, 100, 0, 0, Math.PI * 2); ctx.fill();
+
+    drawForeman(ctx, 160, 150);
+    drawForeman(ctx, 820, 130);
+
+    // Top boat carrying a worker in shorts
+    ctx.fillStyle = '#8b5a2b'; ctx.fillRect(p1, 60, 70, 22);
+    drawWorker(ctx, p1 + 35, 70, false, false);
+
+    // Bottom boat carrying a worker in shorts
+    ctx.fillStyle = '#8b5a2b'; ctx.fillRect(p2, 160, 70, 22);
+    drawWorker(ctx, p2 + 35, 170, false, false);
+  }
+
+  function drawEstateInterior(ctx, cleaners, dt) {
+    ctx.fillStyle = '#3b2f2f'; ctx.fillRect(0, 0, 1000, 125);
+    ctx.fillStyle = '#5c4033'; ctx.fillRect(0, 125, 1000, 95);
+
+    cleaners.forEach(c => {
+      c.x += c.speed * c.dir;
+      if (c.x > 920 || c.x < 60) c.dir *= -1;
+      drawWorker(ctx, c.x, 165, true, false);
+    });
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', saveGame);
+  document.getElementById('resetBtn').addEventListener('click', resetGame);
+  setInterval(saveGame, 10000);
+
+  loadGame();
+  renderShop();
+  requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>
